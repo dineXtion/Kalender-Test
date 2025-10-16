@@ -1,268 +1,176 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticket Verfügbarkeits-Checker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Simple spinner */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1.0">
+ <title>VR-Infotainment Öffnungszeiten</title>
+ <style>
+  *{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;padding:2rem 1rem;color:#0f172a}
+.calendar-widget{max-width:1200px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.1);overflow:hidden;border:2px solid #e0e0e0;transition:all .3s}
+.calendar-widget:hover{box-shadow:0 15px 40px rgba(0,0,0,.15);border-color:#2563eb}
+.calendar-body{padding:3rem}
+.month-navigation{display:flex;justify-content:space-between;align-items:center;margin-bottom:3rem}
+.nav-button{background:#000;color:#fff;border:none;border-radius:50%;width:50px;height:50px;cursor:pointer;font-size:1.5rem;transition:all .3s;display:flex;align-items:center;justify-content:center}
+.nav-button:hover{background:#333;transform:scale(1.1)}
+.nav-button:disabled{background:#ccc;cursor:not-allowed;transform:none}
+.month-year{font-size:2rem;font-weight:700;color:#000}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1rem}
+.day-header{text-align:center;font-weight:700;padding:1.5rem .5rem;color:#000;font-size:1.1rem;border-bottom:3px solid #e0e0e0;margin-bottom:1rem}
+.calendar-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:15px;font-weight:600;font-size:1.2rem;transition:all .3s;position:relative;border:2px solid transparent;min-height:80px;flex-direction:column;gap:.25rem;padding:.6rem;text-align:center;color:#1f2937;background:#f5f5f5}
+.calendar-day.other-month{color:#d1d5db;background:#fafafa}
+.calendar-day.current-month{color:#1f2937;background:#f5f5f5}
+.calendar-day.open{background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);color:#fff;box-shadow:0 4px 15px rgba(37,99,235,.25);cursor:pointer;text-decoration:none}
+.calendar-day.open:hover{background:linear-gradient(135deg,#1d4ed8 0%,#1e3a8a 100%);transform:scale(1.06);box-shadow:0 6px 25px rgba(37,99,235,.35)}
+.calendar-day.open.past{background:linear-gradient(135deg,#9ca3af 0%,#6b7280 100%);cursor:not-allowed;opacity:.75;pointer-events:none}
+.calendar-day.open.past:hover{transform:none;box-shadow:0 4px 15px rgba(156,163,175,.25)}
+.calendar-day.sold-out{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+.calendar-day.sold-out .ticket-info{color:#b91c1c}
+.day-number{font-size:1.6rem;font-weight:700}
+.day-label{font-size:.7rem;opacity:.85;text-transform:uppercase;letter-spacing:.5px}
+.kw-label{font-size:.6rem;opacity:.8;margin-top:.1rem}
+.ticket-info{font-size:.95rem;font-weight:600;display:flex;align-items:center;gap:.2rem}
+.ticket-info:empty{display:none}
+.calendar-day.today{border-color:#2563eb;border-width:3px}
+.calendar-day.today.open{border-color:#fff;box-shadow:0 0 0 3px #2563eb,0 4px 15px rgba(37,99,235,.25)}
+.calendar-day.today.open.past{box-shadow:0 0 0 3px #9ca3af,0 4px 15px rgba(156,163,175,.25)}
+.legend{margin-top:3rem;padding-top:2rem;border-top:2px solid #e0e0e0;display:flex;justify-content:center;gap:4rem;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:1rem;font-size:1.1rem;color:#475569}
+.legend-color{width:24px;height:24px;border-radius:6px;border:2px solid #ddd}
+.legend-color.open{background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);border-color:#2563eb}
+.legend-color.past{background:linear-gradient(135deg,#9ca3af 0%,#6b7280 100%);border-color:#9ca3af;opacity:.8}
+.legend-color.closed{background:#f5f5f5;border-color:#e0e0e0}
+.legend-color.sold-out{background:#fee2e2;border-color:#fecaca}
+.info-text{text-align:center;color:#475569;font-size:1rem;margin-top:2rem;padding:1.5rem;background:#f8f8f8;border-radius:10px}
+.info-text.error{background:#fee2e2;color:#991b1b;display:none}
+.hidden{display:none!important}
+@media(max-width:1024px){
+.calendar-widget{max-width:90%}
+.calendar-body{padding:2rem}
+.month-year{font-size:1.5rem}
+.calendar-day{min-height:70px;font-size:1rem}
+.day-number{font-size:1.3rem}
+.ticket-info{font-size:.85rem}
+}
+@media(max-width:768px){
+body{padding:.5rem}
+.calendar-widget{max-width:100%;border-radius:15px}
+.calendar-body{padding:1.5rem 1rem}
+.month-navigation{margin-bottom:2rem}
+.nav-button{width:45px;height:45px}
+.month-year{font-size:1.2rem}
+.calendar-grid{gap:.4rem}
+.calendar-day{min-height:50px;font-size:.9rem;border-radius:10px;padding:.4rem}
+.day-number{font-size:1.1rem}
+.day-label{font-size:.6rem}
+.kw-label{display:none}
+.day-header{font-size:.8rem;padding:.8rem .2rem}
+.legend{gap:1.5rem;flex-direction:column;align-items:center}
+.legend-item{font-size:.9rem}
+.info-text{font-size:.9rem;padding:1rem}
+}
+@media(max-width:480px){
+.calendar-body{padding:1rem .5rem}
+.nav-button{width:40px;height:40px;font-size:1.2rem}
+.month-year{font-size:1rem}
+.calendar-grid{gap:.2rem}
+.calendar-day{min-height:40px;font-size:.8rem;border-radius:8px}
+.day-number{font-size:.9rem}
+.day-label{display:none}
+.day-header{font-size:.7rem;padding:.5rem .1rem}
+}
+ </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
-
-    <div class="container mx-auto p-4 md:p-8">
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Ticket-Verfügbarkeits-Checker</h1>
-            <p class="text-gray-600">Zeigt die freien Ticketkontingente für "Das Weltall neu erleben" an.</p>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-4 w-full md:w-auto">
-                    <button id="prevWeekBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">&lt; Vorherige Woche</button>
-                    <input type="date" id="datePicker" class="form-input w-full md:w-auto border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <button id="nextWeekBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">Nächste Woche &gt;</button>
-                </div>
-                <button id="fetchBtn" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md">
-                    Anzeigen
-                </button>
-            </div>
-        </div>
-
-        <div id="loading" class="flex justify-center items-center my-8 hidden">
-            <div class="loader"></div>
-            <p class="ml-4 text-gray-600">Daten werden geladen...</p>
-        </div>
-
-        <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative my-4" role="alert">
-            <strong class="font-bold">Fehler!</strong>
-            <span class="block sm:inline" id="errorMessage"></span>
-        </div>
-
-        <div id="resultsContainer" class="bg-white rounded-xl shadow-lg overflow-x-auto">
-            <table class="w-full text-sm text-left text-gray-500">
-                <thead id="tableHeader" class="text-xs text-gray-700 uppercase bg-gray-50">
-                    <!-- Header will be dynamically generated here -->
-                </thead>
-                <tbody id="tableBody">
-                    <!-- Content will be dynamically generated here -->
-                </tbody>
-            </table>
-        </div>
-         <footer class="text-center text-gray-500 text-xs mt-6">
-            <p>Dies ist eine inoffizielle Anwendung. Alle Daten stammen von ticket-regional.de.</p>
-             <p><strong>Hinweis:</strong> Um die CORS-Beschränkungen zu umgehen, werden öffentliche Proxy-Dienste verwendet. Diese sind in der Regel zuverlässig, können aber gelegentlich ausfallen.</p>
-        </footer>
+<body>
+ <div class="calendar-widget">
+  <div class="calendar-body">
+   <div class="month-navigation">
+    <button class="nav-button" onclick="previousMonth()" id="prevBtn">‹</button>
+    <div class="month-year" id="monthYear">August 2025</div>
+    <button class="nav-button" onclick="nextMonth()" id="nextBtn">›</button>
+   </div>
+   <div class="calendar-grid" id="calendarGrid">
+    <div class="day-header">Mo</div>
+    <div class="day-header">Di</div>
+    <div class="day-header">Mi</div>
+    <div class="day-header">Do</div>
+    <div class="day-header">Fr</div>
+    <div class="day-header">Sa</div>
+    <div class="day-header">So</div>
+   </div>
+   <div id="calendarError" class="info-text error"></div>
+   <div class="legend">
+    <div class="legend-item">
+     <div class="legend-color open"></div>
+     <span>Geöffnet – Tickets verfügbar</span>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const datePicker = document.getElementById('datePicker');
-            const prevWeekBtn = document.getElementById('prevWeekBtn');
-            const nextWeekBtn = document.getElementById('nextWeekBtn');
-            const fetchBtn = document.getElementById('fetchBtn');
-            const loadingDiv = document.getElementById('loading');
-            const errorDiv = document.getElementById('error');
-            const errorMessageSpan = document.getElementById('errorMessage');
-            const tableHeader = document.getElementById('tableHeader');
-            const tableBody = document.getElementById('tableBody');
-            const resultsContainer = document.getElementById('resultsContainer');
-
-            // Cache to store fetched HTML data for weeks
-            const ticketCache = {};
-            const WEEK_IN_SECONDS = 7 * 24 * 60 * 60;
-
-            const getMondayTimestamp = (d) => {
-                d = new Date(d);
-                const day = d.getDay();
-                const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-                const monday = new Date(d.setDate(diff));
-                monday.setHours(0, 0, 0, 0); // Normalize to the start of the day
-                return Math.floor(monday.getTime() / 1000);
-            };
-            
-            // Set initial date to today
-            const today = new Date();
-            datePicker.value = today.toISOString().split('T')[0];
-
-            const fetchWeekData = async (startTime) => {
-                // If data is already in cache, return it.
-                if (ticketCache[startTime]) {
-                    return ticketCache[startTime];
-                }
-
-                const timeID = '1006912';
-                const targetUrl = `https://www.ticket-regional.de/stage_2688.php?timeID=${timeID}&startTime=${startTime}`;
-                
-                // --- NEW: Array of proxies for fallback mechanism ---
-                const proxyUrls = [
-                    'https://api.allorigins.win/raw?url=',
-                    'https://corsproxy.io/?'
-                ];
-
-                for (const proxyUrl of proxyUrls) {
-                    try {
-                        const fullUrl = proxyUrl + encodeURIComponent(targetUrl);
-                        const response = await fetch(fullUrl, { cache: 'no-store' }); // Use no-store to avoid browser caching proxy errors
-                        if (!response.ok) {
-                            throw new Error(`Proxy/Server-Antwort war nicht in Ordnung. Status: ${response.status}`);
-                        }
-                        const htmlString = await response.text();
-                        
-                        // Check if the response is valid HTML from the target site, not an error page from the proxy.
-                        if (!htmlString.includes('scheduleContainer')) {
-                             throw new Error('Die vom Proxy abgerufenen Daten scheinen ungültig zu sein.');
-                        }
-
-                        ticketCache[startTime] = htmlString; // Cache the successful result
-                        return htmlString; // Return on first success
-                    } catch (err) {
-                        console.warn(`Proxy ${proxyUrl} fehlgeschlagen:`, err);
-                        // Error will be caught, and the loop will continue to the next proxy.
-                    }
-                }
-
-                // If the loop completes without a successful fetch, throw a final error.
-                throw new Error('Alle Proxies konnten die Daten nicht abrufen. Bitte versuchen Sie es später erneut.');
-            };
-
-
-            const prefetchAdjacentWeeks = (startTime) => {
-                // Silently prefetch next and previous weeks without waiting for them
-                fetchWeekData(startTime - WEEK_IN_SECONDS).catch(e => {}); // Ignore errors on prefetch
-                fetchWeekData(startTime + WEEK_IN_SECONDS).catch(e => {});
-            };
-
-            const displayDataForWeek = async (startTime) => {
-                loadingDiv.classList.remove('hidden');
-                errorDiv.classList.add('hidden');
-                resultsContainer.classList.add('hidden');
-                tableBody.innerHTML = '';
-                tableHeader.innerHTML = '';
-
-                try {
-                    const htmlString = await fetchWeekData(startTime);
-                    parseAndDisplayData(htmlString);
-                    // Once the main data is displayed, prefetch adjacent weeks
-                    prefetchAdjacentWeeks(startTime);
-
-                } catch (err) {
-                    errorMessageSpan.textContent = `Fehler beim Abrufen der Daten: ${err.message}`;
-                    errorDiv.classList.remove('hidden');
-                } finally {
-                    loadingDiv.classList.add('hidden');
-                }
-            };
-
-            const parseAndDisplayData = (htmlString) => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlString, 'text/html');
-
-                const scheduleContainer = doc.querySelector('.scheduleContainer');
-                if (!scheduleContainer) {
-                    errorMessageSpan.textContent = 'Konnte den Kalender auf der Zielseite nicht finden. Die Seitenstruktur hat sich möglicherweise geändert.';
-                    errorDiv.classList.remove('hidden');
-                    return;
-                }
-                
-                tableHeader.innerHTML = '';
-                tableBody.innerHTML = '';
-
-                // --- Parse Header ---
-                const headerCells = scheduleContainer.querySelectorAll('tr:nth-child(2) .scheduleDayOnly');
-                const headerRow = document.createElement('tr');
-                headerRow.innerHTML = '<th scope="col" class="px-6 py-3">Uhrzeit</th>';
-                headerCells.forEach(cell => {
-                    const cleanedHtml = cell.innerHTML.replace(/<br\s*\/?>/gi, ' ');
-                    headerRow.innerHTML += `<th scope="col" class="px-6 py-3">${cleanedHtml}</th>`;
-                });
-                tableHeader.appendChild(headerRow);
-
-                // --- Parse Body Rows ---
-                const dataRows = scheduleContainer.querySelectorAll('tr:nth-child(n+3)');
-                dataRows.forEach(row => {
-                    const timeCell = row.querySelector('.scheduleDayTime');
-                    if (!timeCell) return;
-
-                    const time = timeCell.textContent.trim();
-                    const newRow = document.createElement('tr');
-                    newRow.className = 'bg-white border-b hover:bg-gray-50';
-                    newRow.innerHTML = `<th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${time}</th>`;
-
-                    const contentCells = row.querySelectorAll('.scheduleContent.scheduleDay');
-                    contentCells.forEach(cell => {
-                        let content = '';
-                        let cellClass = 'px-6 py-4 text-center';
-
-                        const freeTicketsSpan = cell.querySelector('.scheduleDayFreeTickets');
-                        
-                        if (freeTicketsSpan) {
-                            const count = freeTicketsSpan.textContent.replace(/\D/g, '');
-                            content = `Tickets (${count})`;
-                            cellClass += ' bg-teal-100 text-teal-800 font-semibold';
-                        } else if (cell.textContent.includes('Tickets')) {
-                            content = 'Tickets';
-                            cellClass += ' bg-blue-100 text-blue-800 font-medium';
-                        } else if (cell.textContent.includes('Ausverkauft')) {
-                            content = 'Ausverkauft';
-                            cellClass += ' bg-red-100 text-red-800';
-                        } else if (cell.classList.contains('etStartTimeNotBookable')) {
-                            content = '-';
-                            cellClass += ' text-gray-400';
-                        }
-
-                        newRow.innerHTML += `<td class="${cellClass}">${content}</td>`;
-                    });
-                    tableBody.appendChild(newRow);
-                });
-
-                resultsContainer.classList.remove('hidden');
-            };
-
-            const updateDateAndFetch = (days) => {
-                const currentDate = new Date(datePicker.value);
-                currentDate.setDate(currentDate.getDate() + days);
-                datePicker.value = currentDate.toISOString().split('T')[0];
-                const startTime = getMondayTimestamp(currentDate);
-                displayDataForWeek(startTime);
-            };
-
-            prevWeekBtn.addEventListener('click', () => updateDateAndFetch(-7));
-            nextWeekBtn.addEventListener('click', () => updateDateAndFetch(7));
-            
-            const fetchFromDatePicker = () => {
-                const selectedDate = new Date(datePicker.value);
-                const startTime = getMondayTimestamp(selectedDate);
-                displayDataForWeek(startTime);
-            };
-            
-            fetchBtn.addEventListener('click', fetchFromDatePicker);
-            datePicker.addEventListener('change', fetchFromDatePicker);
-
-            // Initial fetch on page load
-            fetchFromDatePicker();
-        });
-    </script>
-
+    <div class="legend-item">
+     <div class="legend-color past"></div>
+     <span>Vergangen – nicht mehr buchbar</span>
+    </div>
+    <div class="legend-item">
+     <div class="legend-color sold-out"></div>
+     <span>Ausverkauft</span>
+    </div>
+    <div class="legend-item">
+     <div class="legend-color closed"></div>
+     <span>Geschlossen</span>
+    </div>
+   </div>
+   <div class="info-text">
+    📍 VR-Infotainment Ausstellung • Altenberger-Straße 69 A, 01744 Dippoldiswalde<br>
+    🎫 Klicken Sie auf die markierten Tage für direkte Ticketbuchung der jeweiligen Kalenderwoche
+   </div>
+  </div>
+ </div>
+ <script>
+  const kwUrls={34:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=prevWeek&startTime=1755511200',35:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1756116000',36:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1756720800',37:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1757325600',38:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1757930400',39:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1758535200',40:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1759140000',41:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1759744800',42:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1760349600',43:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1760954400',44:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1761559200',45:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1762167600',46:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1762772400',47:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1763377200',48:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1763982000',49:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1764586800',50:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1765191600',51:'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1765796400'};
+const proxyUrls=['https://api.allorigins.win/raw?url=','https://corsproxy.io/?'];
+const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const weekCache={};
+const htmlCache={};
+const kwConfigs=Object.fromEntries(Object.entries(kwUrls).map(([kw,url])=>{const parsed=new URL(url);const startTime=Number(parsed.searchParams.get('startTime'))||0;return[kw,{url,startTime}];}));
+const startTimes=Object.values(kwConfigs).map(cfg=>cfg.startTime*1000).filter(Boolean);
+const earliestStart=startTimes.length?new Date(Math.min(...startTimes)):new Date();
+const latestStart=startTimes.length?new Date(Math.max(...startTimes)):new Date();
+let curYear=earliestStart.getFullYear();
+let curMonth=earliestStart.getMonth()+1;
+const calendarGrid=document.getElementById('calendarGrid');
+const monthYear=document.getElementById('monthYear');
+const errorBox=document.getElementById('calendarError');
+const today=new Date();
+today.setHours(0,0,0,0);
+const fmtDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const getWeek=d=>{const date=new Date(d.getFullYear(),d.getMonth(),d.getDate());const day=date.getDay()||7;date.setDate(date.getDate()+4-day);const yearStart=new Date(date.getFullYear(),0,1);return Math.ceil((((date-yearStart)/86400000)+1)/7);};
+const isPastDate=date=>date<today;
+const clearError=()=>{errorBox.textContent='';errorBox.style.display='none';};
+const showError=msg=>{errorBox.textContent=msg;errorBox.style.display='block';};
+const dayClickHandler=e=>{const cell=e.currentTarget;const url=cell.dataset.url;if(url)window.open(url,'_blank','noopener');};
+const dayKeyHandler=e=>{if(e.key==='Enter'||e.key===' '){const cell=e.currentTarget;const url=cell.dataset.url;if(url){e.preventDefault();window.open(url,'_blank','noopener');}}};
+const detachInteractions=cell=>{cell.removeAttribute('data-url');cell.removeEventListener('click',dayClickHandler);cell.removeEventListener('keydown',dayKeyHandler);cell.removeAttribute('role');cell.removeAttribute('tabindex');};
+const attachInteractions=(cell,url)=>{cell.dataset.url=url;cell.addEventListener('click',dayClickHandler);cell.addEventListener('keydown',dayKeyHandler);cell.setAttribute('role','link');cell.setAttribute('tabindex','0');};
+const createEl=(tag,className,html)=>{const el=document.createElement(tag);if(className)el.className=className;if(html!==undefined)el.innerHTML=html;return el;};
+const createDay=(day,monthClass,date)=>{const isToday=date&&fmtDate(date)===fmtDate(today);const dayType=date?(date.getDay()===0?'Sonntag':date.getDay()===6?'Samstag':''):'';const kw=date?getWeek(date):'';const dayContent=`<span class="day-number">${day}</span>${dayType?`<span class="day-label">${dayType}</span>`:''}<span class="ticket-info" data-ticket></span>${kw?`<span class="kw-label">KW ${kw}</span>`:''}`;const cell=createEl('div',`calendar-day ${monthClass}${isToday?' today':''}`,monthClass==='current-month'?dayContent:String(day));if(date){cell.dataset.date=fmtDate(date);cell.dataset.year=date.getFullYear();cell.dataset.month=String(date.getMonth()+1);}return cell;};
+const fetchWeekHtml=async kw=>{const cfg=kwConfigs[kw];if(!cfg)return null;if(htmlCache[cfg.url])return htmlCache[cfg.url];for(const proxy of proxyUrls){try{const response=await fetch(proxy+encodeURIComponent(cfg.url),{cache:'no-store'});if(!response.ok)throw new Error(`Proxy-Fehler (${response.status})`);const htmlString=await response.text();if(!htmlString.includes('scheduleContainer'))throw new Error('Antwort ohne Kalenderdaten');htmlCache[cfg.url]=htmlString;return htmlString;}catch(err){console.warn(`Proxy ${proxy} fehlgeschlagen:`,err);}}
+throw new Error('Kalenderdaten konnten nicht geladen werden.');};
+const parseWeekSummary=(htmlString,startTime)=>{const parser=new DOMParser();const doc=parser.parseFromString(htmlString,'text/html');const scheduleContainer=doc.querySelector('.scheduleContainer');if(!scheduleContainer)throw new Error('Zeitplan auf der Zielseite nicht gefunden.');const baseDate=new Date(startTime*1000);const summaries={};for(let i=0;i<7;i++){const ref=new Date(baseDate);ref.setDate(baseDate.getDate()+i);summaries[fmtDate(ref)]={totalFree:0,hasAvailability:false,hasUnknown:false,hasSlot:false,soldOutCount:0};}
+const rows=scheduleContainer.querySelectorAll('tr:nth-child(n+3)');rows.forEach(row=>{const cells=row.querySelectorAll('.scheduleContent.scheduleDay');cells.forEach((cell,idx)=>{const current=new Date(baseDate);current.setDate(baseDate.getDate()+idx);const key=fmtDate(current);const info=summaries[key];if(!info)return;const text=cell.textContent.trim();const freeSpan=cell.querySelector('.scheduleDayFreeTickets');const isSoldOut=/Ausverkauft/i.test(text);const hasTickets=/Tickets/i.test(text)&&!isSoldOut;const freeCount=freeSpan?parseInt(freeSpan.textContent.replace(/\D/g,''),10):NaN;if(!Number.isNaN(freeCount)){info.totalFree+=freeCount;info.hasAvailability=info.hasAvailability||freeCount>0;info.hasSlot=true;}else if(hasTickets){info.hasUnknown=true;info.hasSlot=true;}if(isSoldOut){info.soldOutCount+=1;info.hasSlot=true;}});});return summaries;};
+const getWeekSummary=async kw=>{if(weekCache[kw])return weekCache[kw];const cfg=kwConfigs[kw];if(!cfg)return null;const htmlString=await fetchWeekHtml(kw);const summary=parseWeekSummary(htmlString,cfg.startTime);weekCache[kw]=summary;return summary;};
+const updateCellWithSummary=(cell)=>{const dateStr=cell.dataset.date;if(!dateStr)return;const dateParts=dateStr.split('-');const date=new Date(Number(dateParts[0]),Number(dateParts[1])-1,Number(dateParts[2]));const ticketInfo=cell.querySelector('[data-ticket]');if(ticketInfo)ticketInfo.textContent='';cell.classList.remove('open','past','sold-out');detachInteractions(cell);const kw=getWeek(date);const summary=weekCache[kw];const info=summary?summary[dateStr]:null;if(!info||(!info.hasAvailability&&!info.hasUnknown&&!info.hasSlot)){cell.title='Geschlossen';return;}if(info.hasAvailability||info.hasUnknown){const countText=info.totalFree>0?`🎫 ${info.totalFree}`:'🎫 —';if(ticketInfo)ticketInfo.textContent=countText;const cfg=kwConfigs[kw];cell.classList.add('open');if(isPastDate(date)){cell.classList.add('past');cell.title='Vergangener Termin';}else{if(cfg&&cfg.url){attachInteractions(cell,cfg.url);cell.title=info.totalFree>0?`${info.totalFree} Tickets verfügbar`:'Tickets verfügbar';}}return;}if(info.hasSlot&&info.soldOutCount>0){cell.classList.add('sold-out');if(ticketInfo)ticketInfo.textContent='🚫 0';cell.title='Ausverkauft';}};
+const applyAvailability=()=>{const dayCells=[...calendarGrid.querySelectorAll('.calendar-day.current-month[data-date]')];if(!dayCells.length)return;const weeks=[...new Set(dayCells.map(cell=>{const date=new Date(cell.dataset.date+'T12:00:00');return getWeek(date);} ))].filter(kw=>kwConfigs[kw]);if(!weeks.length){dayCells.forEach(cell=>{cell.title='Geschlossen';});return;}clearError();Promise.allSettled(weeks.map(kw=>getWeekSummary(kw))).then(results=>{const hadError=results.some(r=>r.status==='rejected');if(hadError){showError('Kalenderdaten konnten nur teilweise geladen werden. Bitte später erneut versuchen.');}else{clearError();}dayCells.forEach(updateCellWithSummary);}).catch(err=>{console.error(err);showError('Kalenderdaten konnten nicht geladen werden.');});};
+const genCal=(year,month)=>{monthYear.textContent=`${months[month-1]} ${year}`;calendarGrid.querySelectorAll('.calendar-day').forEach(day=>day.remove());const first=new Date(year,month-1,1);const last=new Date(year,month,0);const days=last.getDate();const start=(first.getDay()+6)%7;const prevMonth=month===1?12:month-1;const prevYear=month===1?year-1:year;const prevMonthDays=new Date(prevYear,prevMonth,0).getDate();for(let i=start-1;i>=0;i--){calendarGrid.appendChild(createDay(prevMonthDays-i,'other-month',new Date(prevYear,prevMonth-1,prevMonthDays-i)));}
+for(let d=1;d<=days;d++){calendarGrid.appendChild(createDay(d,'current-month',new Date(year,month-1,d)));}
+const totalCells=Math.ceil((start+days)/7)*7-(start+days);const nextMonth=month===12?1:month+1;const nextYear=month===12?year+1:year;for(let d=1;d<=totalCells;d++){calendarGrid.appendChild(createDay(d,'other-month',new Date(nextYear,nextMonth-1,d)));}
+const prevDisabled=year<earliestStart.getFullYear()||(year===earliestStart.getFullYear()&&month<=earliestStart.getMonth()+1);
+const nextDisabled=year>latestStart.getFullYear()||(year===latestStart.getFullYear()&&month>=latestStart.getMonth()+1);
+document.getElementById('prevBtn').disabled=prevDisabled;
+document.getElementById('nextBtn').disabled=nextDisabled;
+applyAvailability();};
+const previousMonth=()=>{if(curYear<earliestStart.getFullYear()||(curYear===earliestStart.getFullYear()&&curMonth<=earliestStart.getMonth()+1))return;if(curMonth===1){curMonth=12;curYear--; }else{curMonth--; }genCal(curYear,curMonth);};
+const nextMonth=()=>{if(curYear>latestStart.getFullYear()||(curYear===latestStart.getFullYear()&&curMonth>=latestStart.getMonth()+1))return;if(curMonth===12){curMonth=1;curYear++; }else{curMonth++; }genCal(curYear,curMonth);};
+window.previousMonth=previousMonth;
+window.nextMonth=nextMonth;
+document.addEventListener('DOMContentLoaded',()=>{const now=new Date();if(now>=earliestStart&&now<=latestStart){curYear=now.getFullYear();curMonth=now.getMonth()+1;}genCal(curYear,curMonth);});
+ </script>
 </body>
 </html>
-
