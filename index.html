@@ -1,268 +1,511 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticket Verfügbarkeits-Checker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Simple spinner */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>VR-Infotainment Öffnungszeiten</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;padding:2rem 1rem;color:#0f172a}
+    .hidden{display:none!important}
+    .calendar-widget{max-width:1200px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.1);overflow:hidden;border:2px solid #e0e0e0;transition:all .3s}
+    .calendar-widget:hover{box-shadow:0 15px 40px rgba(0,0,0,.15);border-color:#2563eb}
+    .calendar-body{padding:3rem}
+    .month-navigation{display:flex;justify-content:space-between;align-items:center;margin-bottom:3rem}
+    .nav-button{background:#000;color:#fff;border:none;border-radius:50%;width:50px;height:50px;cursor:pointer;font-size:1.5rem;transition:all .3s;display:flex;align-items:center;justify-content:center}
+    .nav-button:hover{background:#333;transform:scale(1.1)}
+    .nav-button:disabled{background:#ccc;cursor:not-allowed;transform:none}
+    .month-year{font-size:2rem;font-weight:700;color:#000}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1rem}
+    .day-header{text-align:center;font-weight:700;padding:1.5rem .5rem;color:#000;font-size:1.1rem;border-bottom:3px solid #e0e0e0;margin-bottom:1rem}
+    .calendar-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:15px;font-weight:600;font-size:1.2rem;transition:all .3s;position:relative;border:2px solid transparent;min-height:80px;flex-direction:column;gap:.2rem;padding:.6rem;text-align:center}
+    .calendar-day.other-month{color:#ddd;background:#fafafa}
+    .calendar-day.current-month{color:#64748b;background:#f5f5f5}
+    .calendar-day.open{background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);color:#fff;box-shadow:0 4px 15px rgba(37,99,235,.25);cursor:pointer;text-decoration:none}
+    .calendar-day.open:hover{background:linear-gradient(135deg,#1d4ed8 0%,#1e3a8a 100%);transform:scale(1.08);box-shadow:0 6px 25px rgba(37,99,235,.35)}
+    .calendar-day.open.past{background:linear-gradient(135deg,#9ca3af 0%,#6b7280 100%);cursor:not-allowed;opacity:.6;pointer-events:none}
+    .calendar-day.open.past:hover{transform:none;box-shadow:0 4px 15px rgba(156,163,175,.25)}
+    .calendar-day.open.sold-out{background:linear-gradient(135deg,#6b7280 0%,#4b5563 100%);cursor:not-allowed;opacity:.85}
+    .calendar-day.open.sold-out:hover{transform:none;box-shadow:0 4px 15px rgba(107,114,128,.35)}
+    .day-number{font-size:1.5rem;font-weight:700}
+    .day-label{font-size:.7rem;opacity:.9;text-transform:uppercase;letter-spacing:.5px}
+    .kw-label{font-size:.6rem;opacity:.8;margin-top:.1rem}
+    .ticket-info{display:flex;align-items:center;gap:.35rem;font-size:1rem;font-weight:700;margin-top:.35rem;color:inherit}
+    .ticket-info.loading{opacity:.7}
+    .ticket-info.unavailable{opacity:.6;font-weight:600;font-size:.9rem}
+    .ticket-info.sold-out{color:#facc15}
+    .ticket-info.error{color:#f87171}
+    .ticket-icon{width:18px;height:18px;color:currentColor;flex-shrink:0}
+    .calendar-day.today{border-color:#2563eb;border-width:3px}
+    .calendar-day.today.open{border-color:#fff;box-shadow:0 0 0 3px #2563eb,0 4px 15px rgba(37,99,235,.25)}
+    .calendar-day.today.open.past{box-shadow:0 0 0 3px #9ca3af,0 4px 15px rgba(156,163,175,.25)}
+    .legend{margin-top:3rem;padding-top:2rem;border-top:2px solid #e0e0e0;display:flex;justify-content:center;gap:4rem;flex-wrap:wrap}
+    .legend-item{display:flex;align-items:center;gap:1rem;font-size:1.1rem;color:#666}
+    .legend-color{width:24px;height:24px;border-radius:6px;border:2px solid #ddd}
+    .legend-color.open{background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);border-color:#2563eb}
+    .legend-color.past{background:linear-gradient(135deg,#9ca3af 0%,#6b7280 100%);border-color:#9ca3af;opacity:.6}
+    .legend-color.closed{background:#f5f5f5;border-color:#e0e0e0}
+    .legend-color.sold-out{background:linear-gradient(135deg,#6b7280 0%,#4b5563 100%);border-color:#4b5563}
+    .info-text{text-align:center;color:#666;font-size:1rem;margin-top:2rem;padding:1.5rem;background:#f8f8f8;border-radius:10px}
+    .fetch-error{margin-top:1.5rem;padding:1rem 1.5rem;border-radius:12px;background:#fee2e2;color:#991b1b;font-weight:600;text-align:center;box-shadow:0 6px 18px rgba(248,113,113,.25)}
+    @media(max-width:1024px){
+      .calendar-widget{max-width:90%}
+      .calendar-body{padding:2rem}
+      .month-year{font-size:1.5rem}
+      .calendar-day{min-height:70px;font-size:1rem}
+      .day-number{font-size:1.3rem}
+    }
+    @media(max-width:768px){
+      body{padding:.5rem}
+      .calendar-widget{max-width:100%;border-radius:15px}
+      .calendar-body{padding:1.5rem 1rem}
+      .month-navigation{margin-bottom:2rem}
+      .nav-button{width:45px;height:45px}
+      .month-year{font-size:1.2rem}
+      .calendar-grid{gap:.4rem}
+      .calendar-day{min-height:50px;font-size:.9rem;border-radius:10px}
+      .day-number{font-size:1.1rem}
+      .day-label{font-size:.6rem}
+      .kw-label{display:none}
+      .ticket-info{font-size:.9rem}
+      .day-header{font-size:.8rem;padding:.8rem .2rem}
+      .legend{gap:1.5rem;flex-direction:column;align-items:center}
+      .legend-item{font-size:.9rem}
+      .info-text{font-size:.9rem;padding:1rem}
+    }
+    @media(max-width:480px){
+      .calendar-body{padding:1rem .5rem}
+      .nav-button{width:40px;height:40px;font-size:1.2rem}
+      .month-year{font-size:1rem}
+      .calendar-grid{gap:.2rem}
+      .calendar-day{min-height:40px;font-size:.8rem;border-radius:8px}
+      .day-number{font-size:.9rem}
+      .day-label{display:none}
+      .ticket-info{font-size:.8rem}
+      .ticket-icon{width:14px;height:14px}
+      .day-header{font-size:.7rem;padding:.5rem .1rem}
+    }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
-
-    <div class="container mx-auto p-4 md:p-8">
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Ticket-Verfügbarkeits-Checker</h1>
-            <p class="text-gray-600">Zeigt die freien Ticketkontingente für "Das Weltall neu erleben" an.</p>
+<body>
+  <div class="calendar-widget">
+    <div class="calendar-body">
+      <div class="month-navigation">
+        <button class="nav-button" onclick="previousMonth()" id="prevBtn">‹</button>
+        <div class="month-year" id="monthYear">August 2025</div>
+        <button class="nav-button" onclick="nextMonth()" id="nextBtn">›</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid">
+        <div class="day-header">Mo</div>
+        <div class="day-header">Di</div>
+        <div class="day-header">Mi</div>
+        <div class="day-header">Do</div>
+        <div class="day-header">Fr</div>
+        <div class="day-header">Sa</div>
+        <div class="day-header">So</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color open"></div>
+          <span>Geöffnet – Tickets verfügbar</span>
         </div>
-
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-4 w-full md:w-auto">
-                    <button id="prevWeekBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">&lt; Vorherige Woche</button>
-                    <input type="date" id="datePicker" class="form-input w-full md:w-auto border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                    <button id="nextWeekBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">Nächste Woche &gt;</button>
-                </div>
-                <button id="fetchBtn" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md">
-                    Anzeigen
-                </button>
-            </div>
+        <div class="legend-item">
+          <div class="legend-color sold-out"></div>
+          <span>Ausgebucht</span>
         </div>
-
-        <div id="loading" class="flex justify-center items-center my-8 hidden">
-            <div class="loader"></div>
-            <p class="ml-4 text-gray-600">Daten werden geladen...</p>
+        <div class="legend-item">
+          <div class="legend-color past"></div>
+          <span>Vergangen – nicht mehr buchbar</span>
         </div>
-
-        <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative my-4" role="alert">
-            <strong class="font-bold">Fehler!</strong>
-            <span class="block sm:inline" id="errorMessage"></span>
+        <div class="legend-item">
+          <div class="legend-color closed"></div>
+          <span>Geschlossen</span>
         </div>
-
-        <div id="resultsContainer" class="bg-white rounded-xl shadow-lg overflow-x-auto">
-            <table class="w-full text-sm text-left text-gray-500">
-                <thead id="tableHeader" class="text-xs text-gray-700 uppercase bg-gray-50">
-                    <!-- Header will be dynamically generated here -->
-                </thead>
-                <tbody id="tableBody">
-                    <!-- Content will be dynamically generated here -->
-                </tbody>
-            </table>
-        </div>
-         <footer class="text-center text-gray-500 text-xs mt-6">
-            <p>Dies ist eine inoffizielle Anwendung. Alle Daten stammen von ticket-regional.de.</p>
-             <p><strong>Hinweis:</strong> Um die CORS-Beschränkungen zu umgehen, werden öffentliche Proxy-Dienste verwendet. Diese sind in der Regel zuverlässig, können aber gelegentlich ausfallen.</p>
-        </footer>
+      </div>
+      <div id="fetchError" class="fetch-error hidden" role="alert"></div>
+      <div class="info-text">
+        📍 VR-Infotainment Ausstellung • Altenberger-Straße 69 A, 01744 Dippoldiswalde
+        <br>
+        🎫 Klicken Sie auf die markierten Tage für direkte Ticketbuchung der jeweiligen Kalenderwoche
+      </div>
     </div>
+  </div>
+  <script>
+    const kwConfig = {
+      34: { startTime: 1755511200, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=prevWeek&startTime=1755511200' },
+      35: { startTime: 1756116000, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1756116000' },
+      36: { startTime: 1756720800, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1756720800' },
+      37: { startTime: 1757325600, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1757325600' },
+      38: { startTime: 1757930400, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1757930400' },
+      39: { startTime: 1758535200, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1758535200' },
+      40: { startTime: 1759140000, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1759140000' },
+      41: { startTime: 1759744800, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1759744800' },
+      42: { startTime: 1760349600, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1760349600' },
+      43: { startTime: 1760954400, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1760954400' },
+      44: { startTime: 1761559200, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1761559200' },
+      45: { startTime: 1762167600, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1762167600' },
+      46: { startTime: 1762772400, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1762772400' },
+      47: { startTime: 1763377200, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1763377200' },
+      48: { startTime: 1763982000, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1763982000' },
+      49: { startTime: 1764586800, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1764586800' },
+      50: { startTime: 1765191600, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1765191600' },
+      51: { startTime: 1765796400, url: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1765796400' }
+    };
+    const holidays = {
+      '2025-01-01': 'Neujahr',
+      '2025-04-18': 'Karfreitag',
+      '2025-04-21': 'Ostermontag',
+      '2025-05-01': 'Tag der Arbeit',
+      '2025-05-29': 'Christi Himmelfahrt',
+      '2025-06-09': 'Pfingstmontag',
+      '2025-10-03': 'Tag der Deutschen Einheit',
+      '2025-10-31': 'Reformationstag',
+      '2025-11-19': 'Buß- und Bettag',
+      '2025-12-25': '1. Weihnachtsfeiertag',
+      '2025-12-26': '2. Weihnachtsfeiertag'
+    };
+    const lastOpen = new Date(2025, 11, 21, 12, 0, 0);
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    const proxies = ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?'];
+    const htmlCache = new Map();
+    const weekSummaryCache = new Map();
+    const htmlPromiseCache = new Map();
+    let curMonth = 8;
+    let curYear = 2025;
+    let fetchErrorEl;
+    let lastErrorMessage = '';
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const datePicker = document.getElementById('datePicker');
-            const prevWeekBtn = document.getElementById('prevWeekBtn');
-            const nextWeekBtn = document.getElementById('nextWeekBtn');
-            const fetchBtn = document.getElementById('fetchBtn');
-            const loadingDiv = document.getElementById('loading');
-            const errorDiv = document.getElementById('error');
-            const errorMessageSpan = document.getElementById('errorMessage');
-            const tableHeader = document.getElementById('tableHeader');
-            const tableBody = document.getElementById('tableBody');
-            const resultsContainer = document.getElementById('resultsContainer');
-
-            // Cache to store fetched HTML data for weeks
-            const ticketCache = {};
-            const WEEK_IN_SECONDS = 7 * 24 * 60 * 60;
-
-            const getMondayTimestamp = (d) => {
-                d = new Date(d);
-                const day = d.getDay();
-                const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-                const monday = new Date(d.setDate(diff));
-                monday.setHours(0, 0, 0, 0); // Normalize to the start of the day
-                return Math.floor(monday.getTime() / 1000);
-            };
-            
-            // Set initial date to today
-            const today = new Date();
-            datePicker.value = today.toISOString().split('T')[0];
-
-            const fetchWeekData = async (startTime) => {
-                // If data is already in cache, return it.
-                if (ticketCache[startTime]) {
-                    return ticketCache[startTime];
-                }
-
-                const timeID = '1006912';
-                const targetUrl = `https://www.ticket-regional.de/stage_2688.php?timeID=${timeID}&startTime=${startTime}`;
-                
-                // --- NEW: Array of proxies for fallback mechanism ---
-                const proxyUrls = [
-                    'https://api.allorigins.win/raw?url=',
-                    'https://corsproxy.io/?'
-                ];
-
-                for (const proxyUrl of proxyUrls) {
-                    try {
-                        const fullUrl = proxyUrl + encodeURIComponent(targetUrl);
-                        const response = await fetch(fullUrl, { cache: 'no-store' }); // Use no-store to avoid browser caching proxy errors
-                        if (!response.ok) {
-                            throw new Error(`Proxy/Server-Antwort war nicht in Ordnung. Status: ${response.status}`);
-                        }
-                        const htmlString = await response.text();
-                        
-                        // Check if the response is valid HTML from the target site, not an error page from the proxy.
-                        if (!htmlString.includes('scheduleContainer')) {
-                             throw new Error('Die vom Proxy abgerufenen Daten scheinen ungültig zu sein.');
-                        }
-
-                        ticketCache[startTime] = htmlString; // Cache the successful result
-                        return htmlString; // Return on first success
-                    } catch (err) {
-                        console.warn(`Proxy ${proxyUrl} fehlgeschlagen:`, err);
-                        // Error will be caught, and the loop will continue to the next proxy.
-                    }
-                }
-
-                // If the loop completes without a successful fetch, throw a final error.
-                throw new Error('Alle Proxies konnten die Daten nicht abrufen. Bitte versuchen Sie es später erneut.');
-            };
-
-
-            const prefetchAdjacentWeeks = (startTime) => {
-                // Silently prefetch next and previous weeks without waiting for them
-                fetchWeekData(startTime - WEEK_IN_SECONDS).catch(e => {}); // Ignore errors on prefetch
-                fetchWeekData(startTime + WEEK_IN_SECONDS).catch(e => {});
-            };
-
-            const displayDataForWeek = async (startTime) => {
-                loadingDiv.classList.remove('hidden');
-                errorDiv.classList.add('hidden');
-                resultsContainer.classList.add('hidden');
-                tableBody.innerHTML = '';
-                tableHeader.innerHTML = '';
-
-                try {
-                    const htmlString = await fetchWeekData(startTime);
-                    parseAndDisplayData(htmlString);
-                    // Once the main data is displayed, prefetch adjacent weeks
-                    prefetchAdjacentWeeks(startTime);
-
-                } catch (err) {
-                    errorMessageSpan.textContent = `Fehler beim Abrufen der Daten: ${err.message}`;
-                    errorDiv.classList.remove('hidden');
-                } finally {
-                    loadingDiv.classList.add('hidden');
-                }
-            };
-
-            const parseAndDisplayData = (htmlString) => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlString, 'text/html');
-
-                const scheduleContainer = doc.querySelector('.scheduleContainer');
-                if (!scheduleContainer) {
-                    errorMessageSpan.textContent = 'Konnte den Kalender auf der Zielseite nicht finden. Die Seitenstruktur hat sich möglicherweise geändert.';
-                    errorDiv.classList.remove('hidden');
-                    return;
-                }
-                
-                tableHeader.innerHTML = '';
-                tableBody.innerHTML = '';
-
-                // --- Parse Header ---
-                const headerCells = scheduleContainer.querySelectorAll('tr:nth-child(2) .scheduleDayOnly');
-                const headerRow = document.createElement('tr');
-                headerRow.innerHTML = '<th scope="col" class="px-6 py-3">Uhrzeit</th>';
-                headerCells.forEach(cell => {
-                    const cleanedHtml = cell.innerHTML.replace(/<br\s*\/?>/gi, ' ');
-                    headerRow.innerHTML += `<th scope="col" class="px-6 py-3">${cleanedHtml}</th>`;
-                });
-                tableHeader.appendChild(headerRow);
-
-                // --- Parse Body Rows ---
-                const dataRows = scheduleContainer.querySelectorAll('tr:nth-child(n+3)');
-                dataRows.forEach(row => {
-                    const timeCell = row.querySelector('.scheduleDayTime');
-                    if (!timeCell) return;
-
-                    const time = timeCell.textContent.trim();
-                    const newRow = document.createElement('tr');
-                    newRow.className = 'bg-white border-b hover:bg-gray-50';
-                    newRow.innerHTML = `<th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${time}</th>`;
-
-                    const contentCells = row.querySelectorAll('.scheduleContent.scheduleDay');
-                    contentCells.forEach(cell => {
-                        let content = '';
-                        let cellClass = 'px-6 py-4 text-center';
-
-                        const freeTicketsSpan = cell.querySelector('.scheduleDayFreeTickets');
-                        
-                        if (freeTicketsSpan) {
-                            const count = freeTicketsSpan.textContent.replace(/\D/g, '');
-                            content = `Tickets (${count})`;
-                            cellClass += ' bg-teal-100 text-teal-800 font-semibold';
-                        } else if (cell.textContent.includes('Tickets')) {
-                            content = 'Tickets';
-                            cellClass += ' bg-blue-100 text-blue-800 font-medium';
-                        } else if (cell.textContent.includes('Ausverkauft')) {
-                            content = 'Ausverkauft';
-                            cellClass += ' bg-red-100 text-red-800';
-                        } else if (cell.classList.contains('etStartTimeNotBookable')) {
-                            content = '-';
-                            cellClass += ' text-gray-400';
-                        }
-
-                        newRow.innerHTML += `<td class="${cellClass}">${content}</td>`;
-                    });
-                    tableBody.appendChild(newRow);
-                });
-
-                resultsContainer.classList.remove('hidden');
-            };
-
-            const updateDateAndFetch = (days) => {
-                const currentDate = new Date(datePicker.value);
-                currentDate.setDate(currentDate.getDate() + days);
-                datePicker.value = currentDate.toISOString().split('T')[0];
-                const startTime = getMondayTimestamp(currentDate);
-                displayDataForWeek(startTime);
-            };
-
-            prevWeekBtn.addEventListener('click', () => updateDateAndFetch(-7));
-            nextWeekBtn.addEventListener('click', () => updateDateAndFetch(7));
-            
-            const fetchFromDatePicker = () => {
-                const selectedDate = new Date(datePicker.value);
-                const startTime = getMondayTimestamp(selectedDate);
-                displayDataForWeek(startTime);
-            };
-            
-            fetchBtn.addEventListener('click', fetchFromDatePicker);
-            datePicker.addEventListener('change', fetchFromDatePicker);
-
-            // Initial fetch on page load
-            fetchFromDatePicker();
+    const fmtDate = (d) => d.toISOString().split('T')[0];
+    const createEl = (tag, cls, html, attrs) => {
+      const el = document.createElement(tag);
+      if (cls) el.className = cls;
+      if (html !== undefined) el.innerHTML = html;
+      if (attrs) Object.assign(el, attrs);
+      return el;
+    };
+    const createTicketIcon = () => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.classList.add('ticket-icon');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('fill', 'currentColor');
+      path.setAttribute('d', 'M4 6.5C4 5.12 5.12 4 6.5 4h11c1.38 0 2.5 1.12 2.5 2.5v1.34a1.5 1.5 0 0 0 0 2.32v1.34c0 1.38-1.12 2.5-2.5 2.5h-11C5.12 14 4 12.88 4 11.5v-1.34a1.5 1.5 0 0 0 0-2.32zM8 7.5a.75.75 0 1 0 0 1.5h8a.75.75 0 0 0 0-1.5zM8 10a.75.75 0 1 0 0 1.5h5a.75.75 0 0 0 0-1.5z');
+      svg.appendChild(path);
+      return svg;
+    };
+    const getWeek = (date) => {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    };
+    const isPastWeek = (date) => {
+      const today = new Date();
+      const cwToday = getWeek(today);
+      const cwDate = getWeek(date);
+      const yearToday = today.getFullYear();
+      const yearDate = date.getFullYear();
+      return yearDate < yearToday || (yearDate === yearToday && cwDate < cwToday);
+    };
+    const isOpenDay = (date) => {
+      if (date > lastOpen) return false;
+      const weekNumber = getWeek(date);
+      if (!kwConfig[weekNumber]) return false;
+      const iso = fmtDate(date);
+      if (holidays[iso]) return true;
+      const day = date.getDay();
+      return day === 0 || day === 6;
+    };
+    const showFetchError = (message) => {
+      if (!fetchErrorEl || !message) return;
+      if (lastErrorMessage === message) return;
+      lastErrorMessage = message;
+      fetchErrorEl.textContent = `⚠️ ${message}`;
+      fetchErrorEl.classList.remove('hidden');
+    };
+    const clearFetchError = () => {
+      if (!fetchErrorEl) return;
+      fetchErrorEl.classList.add('hidden');
+      fetchErrorEl.textContent = '';
+      lastErrorMessage = '';
+    };
+    const fetchWeekHtml = async (startTime) => {
+      if (htmlCache.has(startTime)) return htmlCache.get(startTime);
+      if (htmlPromiseCache.has(startTime)) return htmlPromiseCache.get(startTime);
+      const targetUrl = `https://www.ticket-regional.de/stage_2688.php?timeID=1006912&startTime=${startTime}`;
+      const request = (async () => {
+        let lastError = null;
+        for (const proxy of proxies) {
+          try {
+            const response = await fetch(proxy + encodeURIComponent(targetUrl), { cache: 'no-store' });
+            if (!response.ok) {
+              throw new Error(`Proxy-Antwort ${response.status}`);
+            }
+            const htmlString = await response.text();
+            if (!htmlString.includes('scheduleContainer')) {
+              throw new Error('Unerwartetes Proxy-Ergebnis');
+            }
+            htmlCache.set(startTime, htmlString);
+            return htmlString;
+          } catch (error) {
+            console.warn(`Proxy ${proxy} fehlgeschlagen`, error);
+            lastError = error;
+          }
+        }
+        throw lastError || new Error('Daten konnten nicht geladen werden');
+      })();
+      htmlPromiseCache.set(startTime, request);
+      try {
+        return await request;
+      } finally {
+        htmlPromiseCache.delete(startTime);
+      }
+    };
+    const normaliseYear = (monday, monthIndex) => {
+      const year = monday.getFullYear();
+      if (monthIndex < monday.getMonth() - 6) return year + 1;
+      if (monthIndex > monday.getMonth() + 6) return year - 1;
+      return year;
+    };
+    const parseHeaderDate = (text, monday, fallbackIndex) => {
+      const clean = text.replace(/\s+/g, ' ').trim();
+      const match = clean.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        let year = monday.getFullYear();
+        if (match[3]) {
+          year = parseInt(match[3], 10);
+          if (match[3].length === 2) {
+            year += year >= 70 ? 1900 : 2000;
+          }
+        } else {
+          year = normaliseYear(monday, month);
+        }
+        return new Date(year, month, day, 12, 0, 0);
+      }
+      const fallback = new Date(monday);
+      fallback.setDate(monday.getDate() + fallbackIndex);
+      return fallback;
+    };
+    const parseWeekTickets = (htmlString, startTime) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlString, 'text/html');
+      const scheduleContainer = doc.querySelector('.scheduleContainer');
+      if (!scheduleContainer) {
+        throw new Error('Kalenderstruktur auf ticket-regional nicht gefunden');
+      }
+      const monday = new Date(startTime * 1000);
+      const headerCells = Array.from(scheduleContainer.querySelectorAll('tr:nth-child(2) .scheduleDayOnly'));
+      const headerDates = headerCells.map((cell, index) => ({
+        date: parseHeaderDate(cell.textContent || '', monday, index),
+        element: cell
+      }));
+      const summary = {};
+      headerDates.forEach(({ date }) => {
+        summary[fmtDate(date)] = { free: 0, hasBookable: false, soldOut: false };
+      });
+      const rows = scheduleContainer.querySelectorAll('tr:nth-child(n+3)');
+      rows.forEach((row) => {
+        const dayCells = row.querySelectorAll('.scheduleContent.scheduleDay');
+        dayCells.forEach((cell, index) => {
+          const header = headerDates[index];
+          if (!header) return;
+          const key = fmtDate(header.date);
+          const entry = summary[key] || (summary[key] = { free: 0, hasBookable: false, soldOut: false });
+          const freeTicketsSpan = cell.querySelector('.scheduleDayFreeTickets');
+          if (freeTicketsSpan) {
+            const value = parseInt(freeTicketsSpan.textContent.replace(/[^0-9]/g, ''), 10);
+            if (!Number.isNaN(value)) {
+              entry.free += value;
+              entry.hasBookable = true;
+            }
+          }
+          if (cell.querySelector('a')) {
+            entry.hasBookable = true;
+          }
+          const text = cell.textContent.trim();
+          if (/Ausverkauft/i.test(text)) {
+            entry.soldOut = true;
+          }
+          if (/Tickets/i.test(text)) {
+            entry.hasBookable = true;
+          }
         });
-    </script>
-
+      });
+      Object.keys(summary).forEach((key) => {
+        const entry = summary[key];
+        if (!entry.hasBookable && entry.free === 0 && !entry.soldOut) {
+          delete summary[key];
+        }
+      });
+      return summary;
+    };
+    const getWeekSummary = async (kw) => {
+      if (weekSummaryCache.has(kw)) return weekSummaryCache.get(kw);
+      const config = kwConfig[kw];
+      if (!config) return {};
+      const html = await fetchWeekHtml(config.startTime);
+      const summary = parseWeekTickets(html, config.startTime);
+      weekSummaryCache.set(kw, summary);
+      return summary;
+    };
+    const applyTicketInfo = (el, info) => {
+      const ticketInfo = el.querySelector('.ticket-info');
+      if (!ticketInfo) return;
+      const countSpan = ticketInfo.querySelector('.ticket-count');
+      if (!countSpan) return;
+      ticketInfo.classList.remove('loading', 'sold-out', 'unavailable', 'error');
+      el.classList.remove('sold-out');
+      if (!info) {
+        countSpan.textContent = '–';
+        ticketInfo.classList.add('unavailable');
+        ticketInfo.title = 'Keine Informationen verfügbar';
+        return;
+      }
+      if (info.free > 0) {
+        countSpan.textContent = info.free;
+        ticketInfo.title = `${info.free} freie Tickets`;
+        return;
+      }
+      if (info.soldOut) {
+        countSpan.textContent = '0';
+        ticketInfo.classList.add('sold-out');
+        ticketInfo.title = 'Ausgebucht';
+        el.classList.add('sold-out');
+        return;
+      }
+      if (info.hasBookable) {
+        countSpan.textContent = '?';
+        ticketInfo.classList.add('unavailable');
+        ticketInfo.title = 'Verfügbarkeit auf der Buchungsseite prüfen';
+        return;
+      }
+      countSpan.textContent = '–';
+      ticketInfo.classList.add('unavailable');
+      ticketInfo.title = 'Keine buchbaren Termine';
+    };
+    const updateDayTicketInfo = async (el, date, kw) => {
+      const ticketInfo = el.querySelector('.ticket-info');
+      if (!ticketInfo) return;
+      const countSpan = ticketInfo.querySelector('.ticket-count');
+      if (!countSpan) return;
+      ticketInfo.classList.add('loading');
+      countSpan.textContent = '…';
+      try {
+        const summary = await getWeekSummary(kw);
+        const info = summary[fmtDate(date)];
+        applyTicketInfo(el, info);
+        if (summary && Object.keys(summary).length) {
+          clearFetchError();
+        }
+      } catch (error) {
+        console.error('Ticket-Update fehlgeschlagen', error);
+        ticketInfo.classList.remove('loading');
+        ticketInfo.classList.add('error');
+        countSpan.textContent = '!';
+        ticketInfo.title = 'Fehler beim Laden';
+        showFetchError('Ticketdaten konnten nicht geladen werden. Bitte später erneut versuchen.');
+      }
+    };
+    const createDay = (day, monthClass, date) => {
+      const open = monthClass === 'current-month' && date && isOpenDay(date);
+      const past = date ? isPastWeek(date) : false;
+      const todayIso = fmtDate(new Date());
+      const isToday = date && fmtDate(date) === todayIso;
+      const week = date ? getWeek(date) : null;
+      const config = week ? kwConfig[week] : null;
+      const holidayName = date ? holidays[fmtDate(date)] : '';
+      const dayType = date ? (holidayName ? holidayName : date.getDay() === 0 ? 'Sonntag' : date.getDay() === 6 ? 'Samstag' : '') : '';
+      const baseClasses = ['calendar-day', monthClass];
+      if (open) baseClasses.push('open');
+      if (open && past) baseClasses.push('past');
+      if (isToday) baseClasses.push('today');
+      const tag = open && config && !past ? 'a' : 'div';
+      const element = document.createElement(tag);
+      element.className = baseClasses.join(' ');
+      if (tag === 'a' && config) {
+        element.href = config.url;
+        element.target = '_blank';
+        element.rel = 'noopener noreferrer';
+      }
+      if (monthClass === 'current-month' && !open) {
+        element.title = 'Geschlossen';
+      }
+      if (holidayName) {
+        element.title = holidayName;
+      }
+      const numberSpan = createEl('span', 'day-number', day);
+      element.appendChild(numberSpan);
+      if (dayType && !holidayName) {
+        element.appendChild(createEl('span', 'day-label', dayType));
+      } else if (holidayName) {
+        element.appendChild(createEl('span', 'day-label', holidayName));
+      }
+      if (date && week) {
+        element.appendChild(createEl('span', 'kw-label', `KW ${week}`));
+      }
+      if (open && config) {
+        const ticketInfo = createEl('div', 'ticket-info loading');
+        ticketInfo.appendChild(createTicketIcon());
+        ticketInfo.appendChild(createEl('span', 'ticket-count', '…'));
+        element.appendChild(ticketInfo);
+        const dateCopy = new Date(date.getTime());
+        setTimeout(() => updateDayTicketInfo(element, dateCopy, week), 0);
+      }
+      return element;
+    };
+    const generateCalendar = (year, month) => {
+      const grid = document.getElementById('calendarGrid');
+      document.getElementById('monthYear').textContent = `${months[month - 1]} ${year}`;
+      Array.from(grid.querySelectorAll('.calendar-day')).forEach((node) => node.remove());
+      const firstDay = new Date(year, month - 1, 1);
+      const lastDay = new Date(year, month, 0);
+      const totalDays = lastDay.getDate();
+      const startOffset = (firstDay.getDay() + 6) % 7;
+      const prevMonth = month === 1 ? 12 : month - 1;
+      const prevYear = month === 1 ? year - 1 : year;
+      const prevMonthDays = new Date(prevYear, prevMonth, 0).getDate();
+      for (let i = startOffset - 1; i >= 0; i--) {
+        const date = new Date(prevYear, prevMonth - 1, prevMonthDays - i, 12, 0, 0);
+        grid.appendChild(createDay(prevMonthDays - i, 'other-month', date));
+      }
+      for (let day = 1; day <= totalDays; day++) {
+        const date = new Date(year, month - 1, day, 12, 0, 0);
+        grid.appendChild(createDay(day, 'current-month', date));
+      }
+      const cellsNeeded = Math.ceil((startOffset + totalDays) / 7) * 7 - (startOffset + totalDays);
+      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextYear = month === 12 ? year + 1 : year;
+      for (let day = 1; day <= cellsNeeded; day++) {
+        const date = new Date(nextYear, nextMonth - 1, day, 12, 0, 0);
+        grid.appendChild(createDay(day, 'other-month', date));
+      }
+      document.getElementById('prevBtn').disabled = month <= 1;
+      document.getElementById('nextBtn').disabled = month >= 12;
+    };
+    const previousMonth = () => {
+      if (curMonth <= 1) return;
+      curMonth -= 1;
+      generateCalendar(curYear, curMonth);
+    };
+    const nextMonth = () => {
+      if (curMonth >= 12) return;
+      curMonth += 1;
+      generateCalendar(curYear, curMonth);
+    };
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchErrorEl = document.getElementById('fetchError');
+      const today = new Date();
+      if (today.getFullYear() === curYear) {
+        curMonth = today.getMonth() + 1;
+      }
+      generateCalendar(curYear, curMonth);
+    });
+    window.previousMonth = previousMonth;
+    window.nextMonth = nextMonth;
+  </script>
 </body>
 </html>
-
