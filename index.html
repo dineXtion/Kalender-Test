@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>VR-Infotainment Öffnungszeiten</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 2rem 1rem; }
+    .calendar-widget { max-width: 1200px; margin: 0 auto; background: #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, .1); overflow: hidden; border: 2px solid #e0e0e0; transition: all .3s; }
+    .calendar-widget:hover { box-shadow: 0 15px 40px rgba(0, 0, 0, .15); border-color: #2563eb; }
+    .calendar-body { padding: 3rem; }
+    .month-navigation { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; }
+    .nav-button { background: #000; color: #fff; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 1.5rem; transition: all .3s; display: flex; align-items: center; justify-content: center; }
+    .nav-button:hover { background: #333; transform: scale(1.1); }
+    .nav-button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+    .month-year { font-size: 2rem; font-weight: 700; color: #000; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1rem; }
+    .day-header { text-align: center; font-weight: 700; padding: 1.5rem .5rem; color: #000; font-size: 1.1rem; border-bottom: 3px solid #e0e0e0; margin-bottom: 1rem; }
+    .calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 15px; font-weight: 600; font-size: 1.2rem; transition: all .3s; position: relative; border: 2px solid transparent; min-height: 80px; flex-direction: column; gap: .2rem; }
+    .calendar-day.other-month { color: #ddd; background: #fafafa; }
+    .calendar-day.current-month { color: #999; background: #f5f5f5; }
+    .calendar-day.open { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: #fff; box-shadow: 0 4px 15px rgba(37, 99, 235, .25); cursor: pointer; text-decoration: none; }
+    .calendar-day.open:hover { background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%); transform: scale(1.08); box-shadow: 0 6px 25px rgba(37, 99, 235, .35); }
+    .calendar-day.open.past { background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); cursor: not-allowed; opacity: .6; pointer-events: none; }
+    .calendar-day.open.past:hover { transform: none; box-shadow: 0 4px 15px rgba(156, 163, 175, .25); }
+    .calendar-day.open.sold-out { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); box-shadow: 0 4px 18px rgba(239, 68, 68, .35); }
+    .calendar-day.open.sold-out:hover { transform: none; }
+    .calendar-day.open.limited { background: linear-gradient(135deg, #f97316 0%, #c2410c 100%); }
+    .calendar-day.open.limited:hover { transform: scale(1.04); }
+    .day-number { font-size: 1.5rem; font-weight: 700; }
+    .day-label { font-size: .7rem; opacity: .9; text-transform: uppercase; letter-spacing: .5px; }
+    .kw-label { font-size: .6rem; opacity: .8; margin-top: .1rem; }
+    .availability-indicator { font-size: .75rem; font-weight: 500; padding: .25rem .5rem; border-radius: 999px; background: rgba(255, 255, 255, .2); backdrop-filter: blur(2px); margin-top: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+    .availability-indicator.status-ok { background: rgba(34, 197, 94, .35); }
+    .availability-indicator.status-low { background: rgba(249, 115, 22, .45); }
+    .availability-indicator.status-none { background: rgba(239, 68, 68, .45); }
+    .availability-indicator.status-unknown { background: rgba(148, 163, 184, .45); }
+    .calendar-day.today { border-color: #2563eb; border-width: 3px; }
+    .calendar-day.today.open { border-color: #fff; box-shadow: 0 0 0 3px #2563eb, 0 4px 15px rgba(37, 99, 235, .25); }
+    .calendar-day.today.open.past { box-shadow: 0 0 0 3px #9ca3af, 0 4px 15px rgba(156, 163, 175, .25); }
+    .legend { margin-top: 3rem; padding-top: 2rem; border-top: 2px solid #e0e0e0; display: flex; justify-content: center; gap: 4rem; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 1rem; font-size: 1.1rem; color: #666; }
+    .legend-color { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #ddd; }
+    .legend-color.open { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-color: #2563eb; }
+    .legend-color.past { background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); border-color: #9ca3af; opacity: .6; }
+    .legend-color.closed { background: #f5f5f5; border-color: #e0e0e0; }
+    .legend-color.sold-out { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); border-color: #ef4444; }
+    .legend-color.limited { background: linear-gradient(135deg, #f97316 0%, #c2410c 100%); border-color: #f97316; }
+    .info-text { text-align: center; color: #666; font-size: 1rem; margin-top: 2rem; padding: 1.5rem; background: #f8f8f8; border-radius: 10px; }
+
+    @media (max-width: 1024px) {
+      .calendar-widget { max-width: 90%; }
+      .calendar-body { padding: 2rem; }
+      .month-year { font-size: 1.5rem; }
+      .calendar-day { min-height: 70px; font-size: 1rem; }
+      .day-number { font-size: 1.3rem; }
+    }
+
+    @media (max-width: 768px) {
+      body { padding: .5rem; }
+      .calendar-widget { max-width: 100%; border-radius: 15px; }
+      .calendar-body { padding: 1.5rem 1rem; }
+      .month-navigation { margin-bottom: 2rem; }
+      .nav-button { width: 45px; height: 45px; }
+      .month-year { font-size: 1.2rem; }
+      .calendar-grid { gap: .4rem; }
+      .calendar-day { min-height: 50px; font-size: .9rem; border-radius: 10px; }
+      .day-number { font-size: 1.1rem; }
+      .day-label { font-size: .6rem; }
+      .kw-label { display: none; }
+      .availability-indicator { font-size: .65rem; padding: .2rem .4rem; }
+      .day-header { font-size: .8rem; padding: .8rem .2rem; }
+      .legend { gap: 1.5rem; flex-direction: column; align-items: center; }
+      .legend-item { font-size: .9rem; }
+      .info-text { font-size: .9rem; padding: 1rem; }
+    }
+
+    @media (max-width: 480px) {
+      .calendar-body { padding: 1rem .5rem; }
+      .nav-button { width: 40px; height: 40px; font-size: 1.2rem; }
+      .month-year { font-size: 1rem; }
+      .calendar-grid { gap: .2rem; }
+      .calendar-day { min-height: 40px; font-size: .8rem; border-radius: 8px; }
+      .day-number { font-size: .9rem; }
+      .day-label { display: none; }
+      .day-header { font-size: .7rem; padding: .5rem .1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="calendar-widget">
+    <div class="calendar-body">
+      <div class="month-navigation">
+        <button class="nav-button" onclick="previousMonth()" id="prevBtn">‹</button>
+        <div class="month-year" id="monthYear">August 2025</div>
+        <button class="nav-button" onclick="nextMonth()" id="nextBtn">›</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid">
+        <div class="day-header">Mo</div>
+        <div class="day-header">Di</div>
+        <div class="day-header">Mi</div>
+        <div class="day-header">Do</div>
+        <div class="day-header">Fr</div>
+        <div class="day-header">Sa</div>
+        <div class="day-header">So</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color open"></div>
+          <span>Geöffnet - Tickets verfügbar</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color limited"></div>
+          <span>Geöffnet - Wenige Tickets</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color sold-out"></div>
+          <span>Ausverkauft</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color past"></div>
+          <span>Vergangen - nicht mehr buchbar</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color closed"></div>
+          <span>Geschlossen</span>
+        </div>
+      </div>
+      <div class="info-text">
+        📍 VR-Infotainment Ausstellung • Altenberger-Straße 69 A, 01744 Dippoldiswalde<br>
+        🎫 Klicken Sie auf die markierten Tage für direkte Ticketbuchung der jeweiligen Kalenderwoche
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const kwUrls = {
+      34: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=prevWeek&startTime=1755511200',
+      35: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1756116000',
+      36: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1756720800',
+      37: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1757325600',
+      38: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1757930400',
+      39: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1758535200',
+      40: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1759140000',
+      41: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1759744800',
+      42: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1760349600',
+      43: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1760954400',
+      44: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1761559200',
+      45: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1762167600',
+      46: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1762772400',
+      47: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1763377200',
+      48: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1763982000',
+      49: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1764586800',
+      50: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1765191600',
+      51: 'https://www.ticket-regional.de/stage_2688.php?timeID=1006912&action=nextWeek&startTime=1765796400'
+    };
+
+    const holidays = {
+      '2025-01-01': 'Neujahr',
+      '2025-04-18': 'Karfreitag',
+      '2025-04-21': 'Ostermontag',
+      '2025-05-01': 'Tag der Arbeit',
+      '2025-05-29': 'Christi Himmelfahrt',
+      '2025-06-09': 'Pfingstmontag',
+      '2025-10-03': 'Tag der Deutschen Einheit',
+      '2025-10-31': 'Reformationstag',
+      '2025-11-19': 'Buß- und Bettag',
+      '2025-12-25': '1. Weihnachtsfeiertag',
+      '2025-12-26': '2. Weihnachtsfeiertag'
+    };
+
+    const lastOpen = new Date(2025, 11, 21, 12, 0, 0);
+    let curMonth = 8;
+    let curYear = 2025;
+
+    const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    const availabilityCache = new Map();
+    const weekFetchCache = new Map();
+
+    const getWeek = (d) => {
+      const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const n = t.getDay() || 7;
+      t.setDate(t.getDate() + 4 - n);
+      const y = new Date(t.getFullYear(), 0, 1);
+      return Math.ceil((((t - y) / 86400000) + 1) / 7);
+    };
+
+    const isPastWeek = (d) => {
+      const t = new Date();
+      const cw = getWeek(t);
+      const cy = t.getFullYear();
+      const dw = getWeek(d);
+      const dy = d.getFullYear();
+      return dy < cy || (dy === cy && dw < cw);
+    };
+
+    const isOpen = (d) => d <= lastOpen && (d.getDay() === 0 || d.getDay() === 6 || holidays[d.toISOString().split('T')[0]]);
+    const fmtDate = (d) => d.toISOString().split('T')[0];
+
+    const createEl = (t, c, h, a) => {
+      const e = document.createElement(t);
+      if (c) e.className = c;
+      if (h) e.innerHTML = h;
+      if (a) Object.assign(e, a);
+      return e;
+    };
+
+    const getAvailabilityStatus = (info) => {
+      if (!info) return 'status-unknown';
+      if (info.available === 0) return 'status-none';
+      if (info.available <= info.lowThreshold) return 'status-low';
+      return 'status-ok';
+    };
+
+    const updateDayAvailability = (el, info) => {
+      if (!el) return;
+      let badge = el.querySelector('.availability-indicator');
+      if (!badge) {
+        badge = createEl('span', 'availability-indicator');
+        el.appendChild(badge);
+      }
+      badge.className = `availability-indicator ${getAvailabilityStatus(info)}`;
+      if (!info) {
+        badge.textContent = 'Kontingent offen';
+        el.classList.remove('sold-out', 'limited');
+        return;
+      }
+      if (info.available === 0) {
+        badge.textContent = info.label || 'Ausverkauft';
+        el.classList.add('sold-out');
+        el.classList.remove('limited');
+        return;
+      }
+      if (info.available <= info.lowThreshold) {
+        badge.textContent = info.label || `${info.available} Tickets`;
+        el.classList.add('limited');
+        el.classList.remove('sold-out');
+        return;
+      }
+      badge.textContent = info.label || `${info.available} Tickets`;
+      el.classList.remove('sold-out', 'limited');
+    };
+
+    const analyseTextForAvailability = (text) => {
+      const normalized = text.replace(/\s+/g, ' ').trim();
+      const soldOutMatch = normalized.match(/ausverkauf(t|en)|keine tickets|nicht verf(ü|ue)gbar/i);
+      if (soldOutMatch) {
+        return { available: 0, label: 'Ausverkauft', lowThreshold: 0 };
+      }
+      const countMatch = normalized.match(/(?:noch|frei|verf(ü|ue)gbar|tickets?:?)\D*(\d{1,3}(?:\.\d{3})?)/i);
+      if (countMatch) {
+        const number = parseInt(countMatch[1].replace(/\./g, ''), 10);
+        return { available: number, label: `${number} Tickets`, lowThreshold: Math.max(5, Math.round(number * 0.25)) };
+      }
+      return null;
+    };
+
+    const parseWeekDocument = (html) => {
+      const result = {};
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const candidateNodes = new Set();
+
+      doc.querySelectorAll('[data-date], [data-day], [data-event-date]').forEach((node) => {
+        candidateNodes.add(node);
+      });
+
+      doc.querySelectorAll('section, article, li, tr, .TRmodule, .TRmodules, .calendar, .week, .day').forEach((node) => {
+        if (/(\d{2}\.\d{2}\.\d{4}|\d{4}-\d{2}-\d{2})/.test(node.textContent)) {
+          candidateNodes.add(node);
+        }
+      });
+
+      const processed = new Set();
+
+      const dateFromNode = (node) => {
+        const attrs = ['data-date', 'data-day', 'data-event-date'];
+        for (const attr of attrs) {
+          if (node.hasAttribute && node.hasAttribute(attr)) {
+            const val = node.getAttribute(attr);
+            if (/\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10);
+            if (/\d{2}\.\d{2}\.\d{4}/.test(val)) {
+              const [d, m, y] = val.split('.');
+              return `${y}-${m}-${d}`;
+            }
+          }
+        }
+        const matchIso = node.textContent.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (matchIso) return `${matchIso[1]}-${matchIso[2]}-${matchIso[3]}`;
+        const matchDE = node.textContent.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+        if (matchDE) return `${matchDE[3]}-${matchDE[2]}-${matchDE[1]}`;
+        return null;
+      };
+
+      candidateNodes.forEach((node) => {
+        if (!node || processed.has(node)) return;
+        const isoDate = dateFromNode(node);
+        if (!isoDate) return;
+        const availability = analyseTextForAvailability(node.textContent || '');
+        if (availability) {
+          result[isoDate] = availability;
+          processed.add(node);
+        }
+      });
+
+      if (Object.keys(result).length === 0) {
+        const globalMatches = html.matchAll(/(\d{2})\.(\d{2})\.(\d{4}).{0,160}?(ausverkauf|keine tickets|nicht verf(ü|ue)gbar|noch\s*\d{1,3}(?:\.\d{3})?\s*(?:tickets|plätze|plaetze))/gi);
+        for (const match of globalMatches) {
+          const [, day, month, year, tail] = match;
+          const iso = `${year}-${month}-${day}`;
+          const info = analyseTextForAvailability(match[0]);
+          if (info) {
+            result[iso] = info;
+          }
+        }
+      }
+
+      return result;
+    };
+
+    const fetchWeekAvailability = async (kw) => {
+      if (weekFetchCache.has(kw)) {
+        return weekFetchCache.get(kw);
+      }
+      const url = kwUrls[kw];
+      if (!url) {
+        weekFetchCache.set(kw, Promise.resolve({}));
+        return weekFetchCache.get(kw);
+      }
+      const fetchPromise = fetch(url, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'omit'
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Antwort ${response.status}`);
+          }
+          return response.text();
+        })
+        .then((html) => parseWeekDocument(html))
+        .catch((error) => {
+          console.warn(`Kontingentdaten für KW ${kw} konnten nicht geladen werden:`, error);
+          return {};
+        });
+
+      weekFetchCache.set(kw, fetchPromise);
+      return fetchPromise;
+    };
+
+    const attachAvailabilityLoader = (date, el) => {
+      const iso = fmtDate(date);
+      if (availabilityCache.has(iso)) {
+        updateDayAvailability(el, availabilityCache.get(iso));
+        return;
+      }
+      const kw = getWeek(date);
+      fetchWeekAvailability(kw).then((weekData) => {
+        const info = weekData[iso] || null;
+        availabilityCache.set(iso, info);
+        updateDayAvailability(el, info);
+      });
+    };
+
+    const createDay = (day, mClass, date) => {
+      const open = mClass === 'current-month' && date && isOpen(date);
+      const past = date && isPastWeek(date);
+      const today = date && fmtDate(date) === fmtDate(new Date());
+      const kw = date && getWeek(date);
+      const url = kw && kwUrls[kw];
+      const holiday = date && holidays[fmtDate(date)];
+      const dayType = date && (holiday ? 'Feiertag' : date.getDay() === 0 ? 'Sonntag' : date.getDay() === 6 ? 'Samstag' : '');
+      let el;
+
+      if (open && url && !past) {
+        el = createEl('a', `calendar-day ${mClass} open${today ? ' today' : ''}`,
+          `<span class="day-number">${day}</span>
+${dayType ? `<span class="day-label">${dayType}</span>` : ''}
+<span class="kw-label">KW ${kw}</span>`,
+          {
+            href: url,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            title: `Tickets für KW ${kw} buchen (${day}. ${months[date.getMonth()]}${holiday ? ' - ' + holiday : ''})`
+          }
+        );
+        attachAvailabilityLoader(date, el);
+      } else if (open) {
+        el = createEl('div', `calendar-day ${mClass} open${past ? ' past' : ''}${today ? ' today' : ''}`,
+          `<span class="day-number">${day}</span>
+${dayType ? `<span class="day-label">${dayType}</span>` : ''}
+<span class="kw-label">KW ${kw}</span>`);
+        el.title = past ? `KW ${kw} - Vergangen (nicht mehr buchbar)` : 'Tickets noch nicht verfügbar';
+        if (!past) {
+          attachAvailabilityLoader(date, el);
+        }
+      } else {
+        el = createEl('div', `calendar-day ${mClass}${today ? ' today' : ''}`, day);
+        if (mClass === 'current-month') el.title = 'Geschlossen';
+      }
+      return el;
+    };
+
+    const genCal = (y, m) => {
+      const g = document.getElementById('calendarGrid');
+      document.getElementById('monthYear').textContent = `${months[m - 1]} ${y}`;
+      g.querySelectorAll('.calendar-day').forEach((d) => d.remove());
+      const first = new Date(y, m - 1, 1);
+      const last = new Date(y, m, 0);
+      const days = last.getDate();
+      const start = (first.getDay() + 6) % 7;
+      const pM = m === 1 ? 12 : m - 1;
+      const pY = m === 1 ? y - 1 : y;
+      const pDays = new Date(pY, pM, 0).getDate();
+
+      for (let i = start - 1; i >= 0; i--) {
+        g.appendChild(createDay(pDays - i, 'other-month', new Date(pY, pM - 1, pDays - i, 12, 0, 0)));
+      }
+      for (let d = 1; d <= days; d++) {
+        g.appendChild(createDay(d, 'current-month', new Date(y, m - 1, d, 12, 0, 0)));
+      }
+      const cells = Math.ceil((start + days) / 7) * 7 - (start + days);
+      const nM = m === 12 ? 1 : m + 1;
+      const nY = m === 12 ? y + 1 : y;
+      for (let d = 1; d <= cells; d++) {
+        g.appendChild(createDay(d, 'other-month', new Date(nY, nM - 1, d, 12, 0, 0)));
+      }
+      document.getElementById('prevBtn').disabled = m <= 1;
+      document.getElementById('nextBtn').disabled = m >= 12;
+    };
+
+    const previousMonth = () => { if (curMonth > 1) { curMonth--; genCal(curYear, curMonth); } };
+    const nextMonth = () => { if (curMonth < 12) { curMonth++; genCal(curYear, curMonth); } };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const t = new Date();
+      if (t.getFullYear() === 2025) {
+        const m = t.getMonth() + 1;
+        if (m >= 1 && m <= 12) curMonth = m;
+      }
+      genCal(curYear, curMonth);
+    });
+  </script>
+</body>
+</html>
