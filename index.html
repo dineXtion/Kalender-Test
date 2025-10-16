@@ -520,7 +520,10 @@
 
       const parseFreeInfo = (text) => {
         const normalized = text.replace(/\s+/g, " ").trim();
-        const freeMatch = normalized.match(/(\d+)\s*(?:Pl[aä]tze\s*frei|freie\s*Pl[aä]tze|Tickets\s*(?:frei|verf[uü]gbar)|Restkarten)/i);
+        const ticketButtonMatch = normalized.match(/tickets?\s*\((\d+)\)/i);
+        const freeMatch =
+          normalized.match(/(\d+)\s*(?:Pl[aä]tze\s*frei|freie\s*Pl[aä]tze|Tickets?\s*(?:frei|verf[uü]gbar)|Restkarten)/i) ||
+          ticketButtonMatch;
         const soldOut = /ausverkauft|keine tickets|nicht verf[uü]gbar/i.test(normalized);
         const waitlist = /warteliste/i.test(normalized);
         if (freeMatch) {
@@ -528,7 +531,7 @@
           return {
             free,
             status: free > 0 ? "available" : "sold-out",
-            text: `${free} Plätze frei`,
+            text: free > 0 ? `${free} Plätze frei` : "Ausverkauft",
           };
         }
         if (waitlist) {
